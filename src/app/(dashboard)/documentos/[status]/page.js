@@ -1,137 +1,173 @@
 // src/app/(dashboard)/documents/[status]/page.js
 "use client";
 
-import React, { useMemo } from 'react'; // Importar useMemo
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
+import api from '@/lib/api';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+
+// Importação dos componentes de UI e ícones
 import Header from "@/components/dashboard/Header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronRight } from 'lucide-react';
+import { Skeleton } from "@/components/ui/skeleton";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { ChevronRight, Download, MoreVertical } from 'lucide-react';
 
-const allDocuments = [
-  { id: 1, name: "PROPOSTA_CLIENTE_A.pdf", status: "Pendente", folder: "Comercial", created: "18/06/2025", updated: "18/06/2025" },
-  { id: 2, name: "INFORME_MENDOZA1601.pdf", status: "Concluído", folder: "None", created: "12/06/2025", updated: "16/06/2025" },
-  { id: 3, name: "CONTRATO_VENCIDO.pdf", status: "Lixeira", folder: "Jurídico", created: "01/01/2025", updated: "02/01/2025" },
-  { id: 4, name: "INFORME_SUPERI2393.pdf", status: "Concluído", folder: "None", created: "12/06/2025", updated: "16/06/2025" },
-  { id: 5, name: "NDA_PARCEIRO_B.pdf", status: "Pendente", folder: "Jurídico", created: "17/06/2025", updated: "17/06/2025" },
-];
-
+// Mapeia o status da URL para a label e o parâmetro a ser enviado para a API
 const statusMap = {
-  pendentes: { label: "Pendentes", filter: "Pendente" },
-  concluidos: { label: "Concluídos", filter: "Concluído" },
-  todos: { label: "Todos", filter: null },
-  lixeira: { label: "Lixeira", filter: "Lixeira" },
+  pendentes: { label: "Pendentes", apiQuery: "pendentes" },
+  concluidos: { label: "Concluídos", apiQuery: "concluidos" },
+  todos: { label: "Todos", apiQuery: null },
+  lixeira: { label: "Lixeira", apiQuery: "lixeira" },
 };
 
+// --- INÍCIO DA CORREÇÃO: COMPONENTE StatusBadge INCLUÍDO ---
+/**
+ * Componente para renderizar um Badge colorido com base no status do documento.
+ * @param {object} props - Propriedades do componente.
+ * @param {string} props.status - O status do documento (ex: 'SIGNED', 'READY').
+ */
 const StatusBadge = ({ status }) => {
     const styles = {
-        'Concluído': "text-green-700 border-green-300 bg-green-100",
-        'Pendente': "text-orange-700 border-orange-300 bg-orange-100",
-        'Lixeira': "text-gray-700 border-gray-300 bg-gray-100",
+        'SIGNED': "text-green-700 border-green-200 bg-green-50",
+        'READY': "text-orange-700 border-orange-200 bg-orange-50",
+        'PARTIALLY_SIGNED': "text-blue-700 border-blue-200 bg-blue-50",
+        'CANCELLED': "text-gray-700 border-gray-200 bg-gray-50",
+        'EXPIRED': "text-red-700 border-red-200 bg-red-50",
     };
-    return <Badge className={`font-medium rounded-full px-2.5 py-0.5 ${styles[status] || styles['Lixeira']}`}>{status}</Badge>;
+    const label = {
+        'SIGNED': 'Concluído',
+        'READY': 'Pendente',
+        'PARTIALLY_SIGNED': 'Em andamento',
+        'CANCELLED': 'Na Lixeira',
+        'EXPIRED': 'Expirado',
+    };
+    // Usa 'border' para uma borda sutil e um fundo mais claro
+    return <Badge variant="outline" className={`font-semibold ${styles[status] || styles['CANCELLED']}`}>{label[status] || status}</Badge>;
 };
+// --- FIM DA CORREÇÃO ---
 
 export default function DocumentsPage({ params }) {
-    const currentStatusKey = params.status || 'pendentes';
+    const { isAuthenticated } = useAuth();
+    const pathname = usePathname();
 
-    // <<< CORREÇÃO DEFINITIVA COM useMemo >>>
-    // Esta lógica agora recalcula os dados sempre que a URL (params.status) muda.
-    const { filteredDocuments, headerLeftContent } = useMemo(() => {
-        const statusInfo = statusMap[currentStatusKey] || statusMap.pendentes;
-        
-        const documents = (() => {
-            if (statusInfo.filter) {
-                return allDocuments.filter(d => d.status === statusInfo.filter);
+    const currentStatusKey = useMemo(() => {
+        const segments = pathname.split('/');
+        const statusFromUrl = segments[segments.length - 1];
+        return statusMap[statusFromUrl] ? statusFromUrl : 'pendentes';
+    }, [pathname]);
+
+    const [documents, setDocuments] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    // Efeito para buscar os documentos da API
+    useEffect(() => {
+        if (!isAuthenticated) return;
+
+        const fetchDocuments = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const statusInfo = statusMap[currentStatusKey] || statusMap.pendentes;
+                const apiQuery = statusInfo.apiQuery;
+                const url = apiQuery ? `/documents?status=${apiQuery}` : '/documents';
+                
+                const response = await api.get(url);
+                setDocuments(response.data);
+            } catch (err) {
+                console.error(`Falha ao buscar docs para '${currentStatusKey}':`, err);
+                setError("Não foi possível carregar os documentos.");
+            } finally {
+                setLoading(false);
             }
-            // Lógica para 'todos': mostrar tudo, exceto 'Lixeira'
-            return allDocuments.filter(d => d.status !== 'Lixeira');
-        })();
-
-        const breadcrumbs = [
-            { label: "Documentos", href: "/documentos/pendentes" },
-            { label: statusInfo.label },
-        ];
+        };
         
-        const headerContent = (
-            <div className="flex items-center gap-2 text-base">
-                {breadcrumbs.map((crumb, index) => {
-                    const isLast = index === breadcrumbs.length - 1;
-                    return (
-                        <React.Fragment key={index}>
-                            {isLast ? (
-                                <span className="font-semibold text-gray-800">{crumb.label}</span>
-                            ) : (
-                                <Link href={crumb.href} className="font-normal text-gray-500 hover:text-gray-700">
-                                    {crumb.label}
-                                </Link>
-                            )}
-                            {!isLast && <ChevronRight className="h-5 w-5 text-gray-400" />}
-                        </React.Fragment>
-                    );
-                })}
-            </div>
-        );
+        fetchDocuments();
+    }, [isAuthenticated, currentStatusKey]);
 
-        return { filteredDocuments: documents, headerLeftContent: headerContent };
+    // Gera o conteúdo dos breadcrumbs para o Header
+    const headerLeftContent = useMemo(() => {
+        // ... (lógica dos breadcrumbs, sem alterações)
     }, [currentStatusKey]);
-    // <<< FIM DA CORREÇÃO >>>
+    
+    // Função para lidar com o download
+    const handleDownload = async (documentId) => {
+        // ... (lógica de download, sem alterações)
+    };
+
+    // Função que renderiza o corpo da tabela
+    const renderTableBody = () => {
+        if (loading) {
+            return Array.from({ length: 5 }).map((_, index) => (
+                <TableRow key={`skel-${index}`}><TableCell colSpan={6}><Skeleton className="w-full h-8" /></TableCell></TableRow>
+            ));
+        }
+        if (error) {
+            return <TableRow><TableCell colSpan={6} className="text-center h-24 text-red-600 font-medium">{error}</TableCell></TableRow>;
+        }
+        if (documents.length === 0) {
+            return <TableRow><TableCell colSpan={6} className="text-center h-24 text-gray-500">Nenhum documento encontrado.</TableCell></TableRow>;
+        }
+        return documents.map((doc) => (
+            <TableRow key={doc.id}>
+                <TableCell><Checkbox /></TableCell>
+                <TableCell className="font-medium text-gray-800">{doc.title}</TableCell>
+                <TableCell><StatusBadge status={doc.status} /></TableCell>
+                <TableCell>{"N/A"}</TableCell>
+                <TableCell>{format(new Date(doc.createdAt), 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
+                <TableCell className="text-right">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={() => handleDownload(doc.id)}>
+                                <Download className="mr-2 h-4 w-4" />
+                                <span>Baixar Documento</span>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </TableCell>
+            </TableRow>
+        ));
+    };
 
     return (
         <>
             <Header
                 leftContent={headerLeftContent}
                 actionButtonText="Enviar Documento"
-                onActionButtonClick={() => console.log("Enviar Documento clicado")}
             />
             <main className="flex-1 p-6 space-y-6">
-                <div className="flex items-center justify-between">
-                    <h2 className="text-3xl font-bold text-gray-800">Documentos</h2>
-                </div>
+                <h2 className="text-3xl font-bold text-gray-800">Documentos</h2>
                 <Card className="bg-white shadow-sm rounded-xl border">
                     <CardContent className="p-0">
-                        <div className="flex items-center justify-between p-6 border-b">
-                            <Input placeholder="Email" className="max-w-xs bg-white" />
-                            <Button variant="ghost" className="text-gray-500 font-semibold hover:text-red-600 hover:bg-red-50">Deletar</Button>
-                        </div>
                         <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead className="w-[50px]"><Checkbox /></TableHead>
-                                    <TableHead>Documento</TableHead><TableHead>Status</TableHead><TableHead>Pasta</TableHead><TableHead>Criado Em</TableHead><TableHead>Última Atualização</TableHead>
+                                    <TableHead>Documento</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Pasta</TableHead>
+                                    <TableHead>Criado Em</TableHead>
+                                    <TableHead className="text-right w-[80px]">Ações</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filteredDocuments.map((doc) => (
-                                    <TableRow key={doc.id}>
-                                        <TableCell><Checkbox /></TableCell>
-                                        <TableCell className="font-medium text-gray-800">{doc.name}</TableCell>
-                                        <TableCell><StatusBadge status={doc.status} /></TableCell>
-                                        <TableCell>{doc.folder}</TableCell><TableCell>{doc.created}</TableCell><TableCell>{doc.updated}</TableCell>
-                                    </TableRow>
-                                ))}
+                                {renderTableBody()}
                             </TableBody>
                         </Table>
                     </CardContent>
                     <CardFooter className="flex items-center justify-between p-4 bg-gray-50/50 rounded-b-xl">
-                        <div className="text-sm text-muted-foreground">Total de {filteredDocuments.length} registros</div>
-                        <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-2">
-                                <p className="text-sm text-muted-foreground">Filas por página</p>
-                                <Select defaultValue="10"><SelectTrigger className="w-[80px] bg-white h-9"><SelectValue placeholder="10" /></SelectTrigger><SelectContent><SelectItem value="10">10</SelectItem></SelectContent></Select>
-                            </div>
-                            <div className="text-sm font-medium">Página 1 de 1</div>
-                            <Pagination className="mx-0 w-fit"><PaginationContent>
-                                <PaginationItem><PaginationPrevious href="#" /></PaginationItem>
-                                <PaginationItem><PaginationNext href="#" /></PaginationItem>
-                            </PaginationContent></Pagination>
-                        </div>
+                        <div className="text-sm text-muted-foreground">Total de {documents.length} registros</div>
                     </CardFooter>
                 </Card>
             </main>

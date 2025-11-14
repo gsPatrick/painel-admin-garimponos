@@ -2,7 +2,6 @@
 "use client";
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -11,39 +10,42 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import api from '@/lib/api';
 import { format } from 'date-fns';
 
-export default function Step4_Send({ document, signers, config, onBack }) {
+export default function Step4_Send({ document, signers, config, onBack, onSuccess }) { // Garanta que 'onSuccess' está sendo recebido
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  const [errorMessage, setErrorMessage] = useState(''); // Estado para mensagens de erro
 
   /**
    * Função final que envia todas as configurações e convites para a API.
    */
   const handleSend = async () => {
     setLoading(true);
+    setErrorMessage('');
     try {
       // 1. Atualiza o documento com a data limite definida no Passo 3.
       await api.patch(`/documents/${document.id}`, { deadlineAt: config.deadlineAt });
       
-      // 2. Envia os convites para os signatários, incluindo a qualificação e o método de autenticação.
-      // O backend precisa estar preparado para receber estes dados.
+      // 2. Prepara o payload dos signatários para a API.
       const signersPayload = signers.map(s => ({
         name: s.name,
         email: s.email,
         phone: s.phone || s.phoneWhatsE164,
         cpf: s.cpf,
         qualification: s.qualification,
+        // Converte a escolha do frontend para o formato de array que o backend espera.
         authChannels: s.authMethod === 'Whatsapp' ? ['WHATSAPP', 'EMAIL'] : ['EMAIL'],
       }));
       
+      // 3. Envia os convites para os signatários.
       await api.post(`/documents/${document.id}/invite`, { signers: signersPayload });
 
-      // 3. Sucesso! Exibe uma mensagem e redireciona.
-      // Em uma aplicação real, você poderia ir para uma tela de sucesso antes de redirecionar.
-      alert('Documento enviado para assinatura com sucesso!');
-      router.push('/dashboard'); // Redireciona para o painel principal
+      // --- CORREÇÃO APLICADA AQUI ---
+      // 4. Se tudo deu certo, chama a função onSuccess para ir para a tela de sucesso.
+      onSuccess();
+      // -------------------------------
+
     } catch (error) {
       console.error("Falha ao enviar documento:", error);
-      alert("Ocorreu um erro ao enviar o documento. Por favor, tente novamente.");
+      setErrorMessage(error.response?.data?.message || "Ocorreu um erro ao enviar o documento.");
       setLoading(false);
     }
   };
@@ -55,17 +57,15 @@ export default function Step4_Send({ document, signers, config, onBack }) {
       </CardHeader>
       
       <CardContent className="p-0 space-y-8">
-        {/* --- CAMPO DE MENSAGEM --- */}
         <div className="space-y-2">
           <label htmlFor="message" className="text-base font-medium text-gray-700">Mensagem</label>
           <Textarea 
             id="message" 
-            placeholder="Olá [Nome do Signatário], te envio os contratos para assinatura."
+            placeholder="Escreva uma mensagem opcional para os signatários..."
             className="min-h-[100px]"
           />
         </div>
 
-        {/* --- ABAS DE REVISÃO --- */}
         <div>
           <h3 className="text-lg font-semibold text-gray-800 mb-4">
             Revise documentos e signatários selecionados
@@ -76,7 +76,6 @@ export default function Step4_Send({ document, signers, config, onBack }) {
               <TabsTrigger value="documents">Documentos</TabsTrigger>
             </TabsList>
             
-            {/* Conteúdo da Aba "Signatários" */}
             <TabsContent value="signers" className="mt-4 border rounded-lg overflow-hidden">
               <Table>
                 <TableHeader>
@@ -102,7 +101,6 @@ export default function Step4_Send({ document, signers, config, onBack }) {
               </Table>
             </TabsContent>
 
-            {/* Conteúdo da Aba "Documentos" */}
             <TabsContent value="documents" className="mt-4 border rounded-lg overflow-hidden">
                 <Table>
                     <TableHeader>
@@ -112,15 +110,20 @@ export default function Step4_Send({ document, signers, config, onBack }) {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        <TableRow>
-                            <TableCell className="font-medium">{document?.title}</TableCell>
-                            <TableCell>{document ? format(new Date(document.createdAt), 'dd/MM/yyyy') : '...'}</TableCell>
-                        </TableRow>
+                        {document ? (
+                            <TableRow>
+                                <TableCell className="font-medium">{document.title}</TableCell>
+                                <TableCell>{format(new Date(document.createdAt), 'dd/MM/yyyy')}</TableCell>
+                            </TableRow>
+                        ) : (
+                            <TableRow><TableCell colSpan={2}>Carregando...</TableCell></TableRow>
+                        )}
                     </TableBody>
                 </Table>
             </TabsContent>
           </Tabs>
         </div>
+        {errorMessage && <p className="text-sm text-red-600 font-medium text-center">{errorMessage}</p>}
       </CardContent>
 
       <CardFooter className="flex justify-between p-0 mt-10">

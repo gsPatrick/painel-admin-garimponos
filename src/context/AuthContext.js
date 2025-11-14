@@ -68,7 +68,7 @@ export function AuthProvider({ children }) {
         setUser(data.user);
         
         // Redireciona para o painel principal após o login
-        router.push('/dashboard');
+        router.push('/onboarding');
       } else {
          throw new Error('Resposta inválida do servidor durante o login.');
       }
@@ -96,7 +96,7 @@ export function AuthProvider({ children }) {
         setUser(data.user);
         
         // Redireciona para o painel
-        router.push('/dashboard');
+        router.push('/onboarding');
       } else {
         throw new Error('Resposta inválida do servidor após o cadastro.');
       }

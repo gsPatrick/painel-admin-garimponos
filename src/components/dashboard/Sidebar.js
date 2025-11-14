@@ -1,132 +1,89 @@
 // src/components/dashboard/Sidebar.js
-"use client"
+"use client";
 
-import * as React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from 'next/navigation';
-import {
-  LayoutGrid, FileText, Folder, PenSquare, User, Settings, HelpCircle,
-  ChevronDown, ChevronsUpDown, Signature, LogOut // Adicionar novos ícones
-} from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { ChevronsUpDown, LogOut, Signature, User, HelpCircle } from "lucide-react";
 
-import { cn } from "@/lib/utils";
+// Importação dos componentes de UI
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
-  DropdownMenuSeparator, DropdownMenuTrigger
+import { 
+    DropdownMenu, 
+    DropdownMenuContent, 
+    DropdownMenuItem, 
+    DropdownMenuSeparator, 
+    DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
-const navLinksPrimary = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutGrid },
-  { 
-    label: "Documentos", 
-    icon: FileText,
-    sublinks: [
-      { href: "/documentos/pendentes", label: "Pendentes" },
-      { href: "/documentos/concluidos", label: "Concluídos" },
-      { href: "/documentos/todos", label: "Todos" },
-      { href: "/documentos/lixeira", label: "Lixeira" },
-    ]
-  },
-  { href: "/pastas", label: "Pastas", icon: Folder },
-  { href: "/signatarios", label: "Signatários", icon: PenSquare },
-];
-const navLinksSecondary = [
-  { href: "/plano", label: "Meu Plano", icon: User },
-  { href: "/configuracoes", label: "Configurações", icon: Settings },
-  { href: "/support", label: "Suporte", icon: HelpCircle },
-];
+// Importa o componente de navegação que contém a lógica dos links
+import Navigation from "./Navigation";
 
+/**
+ * Componente da Sidebar para visualização em Desktop.
+ * Fica visível apenas em telas grandes (lg e acima).
+ */
 export default function Sidebar() {
-  const pathname = usePathname();
-  const isDocumentsActive = pathname.startsWith('/documentos');
-  const [isOpen, setIsOpen] = React.useState(isDocumentsActive);
+  // Obtém o objeto 'user' e a função 'logout' do nosso contexto de autenticação
+  const { user, logout } = useAuth();
 
-  React.useEffect(() => { setIsOpen(isDocumentsActive); }, [isDocumentsActive]);
-
-  // <<< CORREÇÃO: Atualizando nome para consistência com a imagem >>>
-  const userName = "Paulo Santos";
-  const userEmail = "paulo@grupoconteo.com";
-  const userAvatar = "https://github.com/shadcn.png"; // Usando avatar genérico
+  // Função para gerar as iniciais do nome do usuário para o AvatarFallback
+  const getInitials = (name) => {
+    if (!name) return 'U'; // Retorna 'U' de "Usuário" se o nome não estiver disponível
+    const names = name.split(' ');
+    if (names.length > 1) {
+      return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
 
   return (
+    // A classe `hidden lg:flex` é o segredo da responsividade:
+    // 'hidden' -> escondido por padrão
+    // 'lg:flex' -> se torna flexível (visível) no breakpoint 'lg' (large)
     <aside className="hidden lg:flex flex-col w-[240px] h-screen bg-[#F7F9FC] border-r">
+      
+      {/* Container principal que empurra o perfil do usuário para o final */}
       <div className="flex-grow flex flex-col p-4 space-y-8">
+        
+        {/* Seção do Logo */}
         <div className="px-2">
-          <div className=" inline-block">
-            <Image src="/logo.png" alt="Logo Doculink" width={140} height={32} />
-          </div>
+          <Link href="/dashboard" aria-label="Voltar para o Dashboard">
+            <Image src="/logo.png" alt="Logo Doculink" width={140} height={32} priority />
+          </Link>
         </div>
-        <nav className="flex-grow flex flex-col space-y-6">
-          <div className="space-y-1">
-            {navLinksPrimary.map((link) => 
-              link.sublinks ? (
-                <Collapsible key={link.label} open={isOpen} onOpenChange={setIsOpen}>
-                  <CollapsibleTrigger asChild>
-                    <Link href="/documentos/pendentes" className="block w-full">
-                      <div className={cn("flex items-center gap-3 rounded-lg px-3 py-2.5 text-base font-medium transition-all hover:bg-gray-200/60", isDocumentsActive ? "text-blue-600" : "text-gray-800")}>
-                        <link.icon className="h-5 w-5" />
-                        <span>{link.label}</span>
-                        <ChevronDown className={`ml-auto h-5 w-5 text-gray-500 transition-transform ${isOpen ? "rotate-0" : "-rotate-90"}`} />
-                      </div>
-                    </Link>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="pl-9 space-y-1 mt-1">
-                    {link.sublinks.map(sublink => {
-                       const isActive = pathname === sublink.href;
-                       return (
-                         <Link key={sublink.href} href={sublink.href} className={cn("block py-1.5 text-sm font-medium transition-colors hover:text-gray-900", isActive ? "text-blue-600" : "text-gray-600")}>
-                           {sublink.label}
-                         </Link>
-                       );
-                    })}
-                  </CollapsibleContent>
-                </Collapsible>
-              ) : (
-                <Link key={link.href} href={link.href} className={cn("flex items-center gap-3 rounded-lg px-3 py-2.5 text-gray-800 text-base font-medium transition-all hover:bg-gray-200/60", pathname === link.href && "text-blue-600")}>
-                  <link.icon className="h-5 w-5" />
-                  <span>{link.label}</span>
-                </Link>
-              )
-            )}
-          </div>
-          <div className="space-y-1">
-             {navLinksSecondary.map((link) => (
-              <Link key={link.href} href={link.href} className={cn("flex items-center gap-3 rounded-lg px-3 py-2.5 text-gray-800 text-base font-medium transition-all hover:bg-gray-200/60", pathname === link.href && "text-blue-600")}>
-                <link.icon className="h-5 w-5" />
-                <span>{link.label}</span>
-              </Link>
-            ))}
-          </div>
-        </nav>
+        
+        {/* Renderiza o componente de navegação compartilhado */}
+        <Navigation />
+
       </div>
       
-      {/* Seção do Perfil do Usuário */}
+      {/* Seção do Perfil do Usuário (fixa no final da sidebar) */}
       <div className="p-4 border-t">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="w-full flex items-center gap-3 text-left">
-              <Avatar className="h-10 w-10"><AvatarImage src={userAvatar} alt={userName} /><AvatarFallback>{userName.slice(0, 2).toUpperCase()}</AvatarFallback></Avatar>
-              <div className="flex-grow">
-                <p className="text-sm font-semibold text-gray-800">{userName}</p>
-                <p className="text-xs text-gray-500 truncate">{userEmail}</p>
+            <button className="w-full flex items-center gap-3 text-left p-2 rounded-lg transition-colors hover:bg-gray-200/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+              <Avatar className="h-10 w-10">
+                {/* A imagem do avatar pode ser adicionada aqui se o usuário tiver uma */}
+                {/* <AvatarImage src={user?.avatarUrl} alt={user?.name} /> */}
+                <AvatarFallback>{getInitials(user?.name)}</AvatarFallback>
+              </Avatar>
+              <div className="flex-grow overflow-hidden">
+                <p className="text-sm font-semibold text-gray-800 truncate">{user?.name || 'Carregando...'}</p>
+                <p className="text-xs text-gray-500 truncate">{user?.email || ''}</p>
               </div>
-              <ChevronsUpDown className="h-4 w-4 text-gray-500" />
+              <ChevronsUpDown className="h-4 w-4 text-gray-500 shrink-0" />
             </button>
           </DropdownMenuTrigger>
 
-          {/* <<< INÍCIO DA ATUALIZAÇÃO DO DROPDOWN >>> */}
           <DropdownMenuContent className="w-64 mb-2" align="end">
             <div className="flex items-center gap-3 p-2">
               <Avatar className="h-10 w-10">
-                  <AvatarImage src={userAvatar} alt={userName} />
-                  <AvatarFallback>{userName.slice(0, 2).toUpperCase()}</AvatarFallback>
+                <AvatarFallback>{getInitials(user?.name)}</AvatarFallback>
               </Avatar>
               <div>
-                <p className="text-sm font-semibold text-gray-800">{userName}</p>
-                <p className="text-xs text-gray-500 truncate">{userEmail}</p>
+                <p className="text-sm font-semibold text-gray-800 truncate">{user?.name}</p>
+                <p className="text-xs text-gray-500 truncate">{user?.email}</p>
               </div>
             </div>
             <DropdownMenuSeparator />
@@ -135,22 +92,24 @@ export default function Sidebar() {
               <span>Área de assinatura</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <User className="mr-2 h-4 w-4" />
-              <span>Meu perfil</span>
+            <DropdownMenuItem asChild>
+              <Link href="/configuracoes">
+                <User className="mr-2 h-4 w-4" />
+                <span>Meu perfil</span>
+              </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem>
-              <HelpCircle className="mr-2 h-4 w-4" />
-              <span>Ajuda</span>
+            <DropdownMenuItem asChild>
+                <Link href="/support">
+                    <HelpCircle className="mr-2 h-4 w-4" />
+                    <span>Ajuda</span>
+                </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onSelect={logout} className="text-red-600 focus:bg-red-50 focus:text-red-700">
               <LogOut className="mr-2 h-4 w-4" />
               <span>Sair</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
-          {/* <<< FIM DA ATUALIZAÇÃO DO DROPDOWN >>> */}
-
         </DropdownMenu>
       </div>
     </aside>
