@@ -16,7 +16,7 @@ const QUALIFICATION_OPTIONS = [
   "Credor", "Devedor", "Distratada", "Distratante", "Interveniente Garantidor",
   "Interveniente Garantidor e Contratante", "Licenciado", "Locador",
 ];
-const AUTH_OPTIONS = ["Whatsapp", "E-mail"];
+const AUTH_OPTIONS = ["Whatsapp", "E-mail", "Ambos"];
 
 export default function Step2_AddSigners({ onNext, onBack, signers, setSigners }) {
   const [isSelectModalOpen, setIsSelectModalOpen] = useState(false);
