@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 export default function EditProductPage({ params }) {
     const [product, setProduct] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
@@ -19,7 +20,9 @@ export default function EditProductPage({ params }) {
             setIsLoading(true);
             try {
                 if (params.id === 'new') {
-                    setProduct({}); // Empty object for new product
+                    // Redirect 'new' to the dedicated new page if somehow reached here, 
+                    // or just handle it. But we have a separate page.
+                    router.replace('/products/new');
                 } else {
                     const data = await AppService.getProductById(params.id);
                     if (data) {
@@ -38,6 +41,20 @@ export default function EditProductPage({ params }) {
         };
         fetchProduct();
     }, [params.id, router]);
+
+    const handleUpdate = async (data) => {
+        setIsSaving(true);
+        try {
+            await AppService.updateProduct(params.id, data);
+            toast.success("Produto atualizado com sucesso!");
+            router.push("/products");
+        } catch (error) {
+            console.error("Error updating product:", error);
+            toast.error("Erro ao atualizar produto.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     if (isLoading) {
         return (
@@ -60,24 +77,24 @@ export default function EditProductPage({ params }) {
                     </Link>
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight">
-                            {params.id === 'new' ? 'Novo Produto' : product.name}
+                            {product.name}
                         </h1>
                         <p className="text-sm text-muted-foreground">
-                            {params.id === 'new' ? 'Adicione um novo produto ao catálogo' : `Editando produto #${product.id}`}
+                            Editando produto #{product.id}
                         </p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
                     <Link href="/products">
-                        <Button variant="outline">Descartar</Button>
+                        <Button variant="outline" disabled={isSaving}>Descartar</Button>
                     </Link>
-                    <Button>
-                        <Save className="mr-2 h-4 w-4" /> Salvar Alterações
+                    <Button type="submit" form="product-form" disabled={isSaving}>
+                        {isSaving ? "Salvando..." : <><Save className="mr-2 h-4 w-4" /> Salvar Alterações</>}
                     </Button>
                 </div>
             </div>
 
-            <ProductForm initialData={product} />
+            <ProductForm initialData={product} onSubmit={handleUpdate} />
         </div>
     );
 }

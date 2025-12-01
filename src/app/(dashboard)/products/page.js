@@ -41,8 +41,20 @@ export default function ProductsPage() {
                 setIsLoading(false);
             }
         };
-        fetchData();
     }, []);
+
+    const handleDelete = async (id) => {
+        if (!confirm("Tem certeza que deseja excluir este produto?")) return;
+
+        try {
+            await AppService.deleteProduct(id);
+            setProducts(products.filter(p => p.id !== id));
+            toast.success("Produto excluído com sucesso!");
+        } catch (error) {
+            console.error("Error deleting product:", error);
+            toast.error("Erro ao excluir produto.");
+        }
+    };
 
     // Derived state for subcategories based on selected category
     const availableSubcategories = categoryFilter !== "all"
@@ -315,7 +327,9 @@ export default function ProductsPage() {
                                                 <Link href={`/products/${product.id}`}>
                                                     <DropdownMenuItem><Pencil className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem>
                                                 </Link>
-                                                <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Excluir</DropdownMenuItem>
+                                                <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(product.id)}>
+                                                    <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                                                </DropdownMenuItem>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </TableCell>

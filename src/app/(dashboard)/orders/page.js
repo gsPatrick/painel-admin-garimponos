@@ -68,8 +68,8 @@ export default function OrdersPage() {
     const filteredOrders = orders.filter((order) => {
         const matchesSearch =
             (order.id || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (order.customer?.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (order.customer?.email || "").toLowerCase().includes(searchTerm.toLowerCase());
+            (order.User?.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (order.User?.email || "").toLowerCase().includes(searchTerm.toLowerCase());
 
         if (statusFilter === "all") return matchesSearch;
         if (statusFilter === "unpaid")
@@ -219,11 +219,11 @@ export default function OrdersPage() {
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
                                                     <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
-                                                        {(order.customer?.name || "C").charAt(0).toUpperCase()}
+                                                        {(order.User?.name || "C").charAt(0).toUpperCase()}
                                                     </div>
                                                     <div className="flex flex-col">
-                                                        <span className="font-medium text-sm">{order.customer?.name || "N/A"}</span>
-                                                        <span className="text-xs text-muted-foreground">{order.customer?.email || "N/A"}</span>
+                                                        <span className="font-medium text-sm">{order.User?.name || "N/A"}</span>
+                                                        <span className="text-xs text-muted-foreground">{order.User?.email || "N/A"}</span>
                                                     </div>
                                                 </div>
                                             </TableCell>

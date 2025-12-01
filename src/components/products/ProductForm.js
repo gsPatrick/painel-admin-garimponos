@@ -18,7 +18,7 @@ import AppService from "@/services/app.service";
 import { CategoryCreateModal } from "./CategoryCreateModal";
 import { toast } from "sonner";
 
-export function ProductForm({ initialData }) {
+export function ProductForm({ initialData, onSubmit }) {
     const [hasVariations, setHasVariations] = useState(initialData?.variations || false);
 
     // Variations State
@@ -139,8 +139,26 @@ export function ProductForm({ initialData }) {
         setIsCategoryModalOpen(true);
     };
 
+    const internalSubmit = (data) => {
+        const mergedData = {
+            ...data,
+            category: selectedCategory,
+            subcategory: selectedSubcategory,
+            hasVariations,
+            variations: hasVariations ? {
+                sizeOptions,
+                colorOptions,
+                generalOptions,
+                matrix
+            } : null
+        };
+        if (onSubmit) {
+            onSubmit(mergedData);
+        }
+    };
+
     return (
-        <form className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-20">
+        <form id="product-form" onSubmit={handleSubmit(internalSubmit)} className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-20">
             {/* Main Column (Left) */}
             <div className="lg:col-span-2 space-y-8">
 

@@ -4,18 +4,31 @@ const AppService = {
     // --- Dashboard ---
     getDashboardData: async () => {
         try {
-            const response = await api.get('/dashboard/executive');
+            const response = await api.get('/dashboard/stats');
             return response.data;
         } catch (error) {
             console.error("API Error (Dashboard):", error);
-            return {
-                totalRevenue: 0,
-                totalOrders: 0,
-                totalCustomers: 0,
-                averageTicket: 0,
-                revenueChart: [],
-                recentOrders: []
-            };
+            throw error;
+        }
+    },
+
+    getSalesReports: async (period = '7d') => {
+        try {
+            const response = await api.get(`/analytics/reports/sales?period=${period}`);
+            return response.data;
+        } catch (error) {
+            console.error("API Error (Sales Reports):", error);
+            return [];
+        }
+    },
+
+    getFunnelData: async () => {
+        try {
+            const response = await api.get('/analytics/funnel');
+            return response.data;
+        } catch (error) {
+            console.error("API Error (Funnel):", error);
+            return [];
         }
     },
 
@@ -102,15 +115,39 @@ const AppService = {
     getSettings: async () => {
         try {
             const response = await api.get('/config');
-            return response.data;
+            const configs = response.data || [];
+
+            // Default structure
+            const settings = {
+                identity: { storeName: '', logoUrl: '', primaryColor: '#000000', secondaryColor: '#ffffff' },
+                integrations: { brechoApiUrl: '', brechoApiKey: '', mercadoPagoToken: '', pixKey: '' },
+                seo: { whatsapp: '', instagram: '', supportEmail: '', metaTitle: '', metaDescription: '' }
+            };
+
+            configs.forEach(cfg => {
+                // Map flat config to nested structure based on group
+                if (settings[cfg.group]) {
+                    settings[cfg.group][cfg.key] = cfg.value;
+                }
+            });
+
+            return settings;
         } catch (error) {
             console.error("Failed to fetch settings:", error);
             return null;
         }
     },
 
-    updateSettings: async (data) => {
-        const response = await api.post('/config', data);
+    updateSettings: async (section, data) => {
+        // Transform object to array of configs
+        const configs = Object.keys(data).map(key => ({
+            key,
+            value: data[key],
+            group: section,
+            is_public: true
+        }));
+
+        const response = await api.post('/config/bulk', configs);
         return response.data;
     },
 
