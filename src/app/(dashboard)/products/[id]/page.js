@@ -1,22 +1,53 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { ProductForm } from "@/components/products/ProductForm";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, Save } from "lucide-react";
 import Link from "next/link";
-import { MOCK_PRODUCTS } from "@/services/mocks";
-import { notFound } from "next/navigation";
+import AppService from "@/services/app.service";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 export default function EditProductPage({ params }) {
-    const product = MOCK_PRODUCTS.find(p => p.id === params.id);
+    const [product, setProduct] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const router = useRouter();
 
-    if (!product && params.id !== 'PROD-001') {
-        // Fallback for demo purposes if ID doesn't match mock exactly or if we want to show a specific mock
-        // In a real app, we would fetch and check
+    useEffect(() => {
+        const fetchProduct = async () => {
+            setIsLoading(true);
+            try {
+                if (params.id === 'new') {
+                    setProduct({}); // Empty object for new product
+                } else {
+                    const data = await AppService.getProductById(params.id);
+                    if (data) {
+                        setProduct(data);
+                    } else {
+                        toast.error("Produto não encontrado.");
+                        router.push('/products');
+                    }
+                }
+            } catch (error) {
+                console.error("Error fetching product:", error);
+                toast.error("Erro ao carregar produto.");
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchProduct();
+    }, [params.id, router]);
+
+    if (isLoading) {
+        return (
+            <div className="flex justify-center py-20">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            </div>
+        );
     }
 
-    // For demo, we'll just use the first mock product if the ID matches, or find it.
-    const initialData = MOCK_PRODUCTS.find(p => p.id === params.id) || MOCK_PRODUCTS[0];
+    if (!product && params.id !== 'new') return null;
 
     return (
         <div className="space-y-6 pb-10">
@@ -28,19 +59,25 @@ export default function EditProductPage({ params }) {
                         </Button>
                     </Link>
                     <div>
-                        <h1 className="text-2xl font-bold tracking-tight">{initialData.name}</h1>
-                        <p className="text-sm text-muted-foreground">Editando produto #{initialData.id}</p>
+                        <h1 className="text-2xl font-bold tracking-tight">
+                            {params.id === 'new' ? 'Novo Produto' : product.name}
+                        </h1>
+                        <p className="text-sm text-muted-foreground">
+                            {params.id === 'new' ? 'Adicione um novo produto ao catálogo' : `Editando produto #${product.id}`}
+                        </p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button variant="outline">Descartar</Button>
+                    <Link href="/products">
+                        <Button variant="outline">Descartar</Button>
+                    </Link>
                     <Button>
                         <Save className="mr-2 h-4 w-4" /> Salvar Alterações
                     </Button>
                 </div>
             </div>
 
-            <ProductForm initialData={initialData} />
+            <ProductForm initialData={product} />
         </div>
     );
 }

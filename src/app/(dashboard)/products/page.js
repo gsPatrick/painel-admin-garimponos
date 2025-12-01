@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, MoreHorizontal, Pencil, Trash2, Filter, ArrowUpDown, Download, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
-import { MOCK_PRODUCTS, MOCK_CATEGORIES } from "@/services/mocks";
+import AppService from "@/services/app.service";
+import { toast } from "sonner";
 
 export default function ProductsPage() {
     const [searchTerm, setSearchTerm] = useState("");
@@ -19,31 +20,73 @@ export default function ProductsPage() {
     const [statusFilter, setStatusFilter] = useState("all");
     const [performanceFilter, setPerformanceFilter] = useState("all");
 
+    const [products, setProducts] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            setIsLoading(true);
+            try {
+                const [productsData, categoriesData] = await Promise.all([
+                    AppService.getProducts(),
+                    AppService.getCategories()
+                ]);
+                setProducts(productsData || []);
+                setCategories(categoriesData || []);
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                toast.error("Erro ao carregar dados.");
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
+
     // Derived state for subcategories based on selected category
     const availableSubcategories = categoryFilter !== "all"
-        ? MOCK_CATEGORIES.filter(c => c.parentId === categoryFilter)
+        ? categories.filter(c => c.parentId === categoryFilter)
         : [];
 
     // Filter Logic
-    const filteredProducts = MOCK_PRODUCTS.filter(product => {
+    const filteredProducts = products.filter(product => {
         const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            product.sku.toLowerCase().includes(searchTerm.toLowerCase());
+            (product.sku && product.sku.toLowerCase().includes(searchTerm.toLowerCase()));
 
-        const matchesCategory = categoryFilter === "all" || product.category === MOCK_CATEGORIES.find(c => c.id === categoryFilter)?.name; // Simplified matching for mock
-        // Note: Real implementation would match by ID. Mock data uses names for category field currently.
+        // Check if category matches (handling both ID and object if populated)
+        const productCategoryId = typeof product.category === 'object' ? product.category?.id : product.category;
+        // Also check if product.categoryId exists (common in sequelize)
+        const finalProductId = product.categoryId || productCategoryId;
+
+        const matchesCategory = categoryFilter === "all" || finalProductId == categoryFilter;
 
         const matchesStatus = statusFilter === "all" || product.status === statusFilter;
 
-        // Mock Performance Logic
+        // Mock Performance Logic (can be updated with real analytics later)
         let matchesPerformance = true;
-        if (performanceFilter === "best_sellers") matchesPerformance = product.stock < 50; // Mock logic
+        if (performanceFilter === "best_sellers") matchesPerformance = product.stock < 50;
         if (performanceFilter === "low_stock") matchesPerformance = product.stock < 20;
         if (performanceFilter === "no_stock") matchesPerformance = product.stock === 0;
 
         return matchesSearch && matchesCategory && matchesStatus && matchesPerformance;
     });
 
-    const rootCategories = MOCK_CATEGORIES.filter(c => !c.parentId);
+    const rootCategories = categories.filter(c => !c.parentId);
+
+    const getCategoryName = (product) => {
+        if (product.Category) return product.Category.name;
+        if (product.category && typeof product.category === 'object') return product.category.name;
+        // If it's an ID, find it in categories list
+        const cat = categories.find(c => c.id === product.categoryId || c.id === product.category);
+        return cat ? cat.name : "Sem Categoria";
+    };
+
+    const getProductImage = (product) => {
+        if (product.images && product.images.length > 0) return product.images[0];
+        if (product.image) return product.image;
+        return "https://placehold.co/100?text=No+Image";
+    };
 
     return (
         <div className="space-y-6 pb-20">
@@ -93,7 +136,7 @@ export default function ProductsPage() {
                             <SelectContent>
                                 <SelectItem value="all">Todas as Categorias</SelectItem>
                                 {rootCategories.map(cat => (
-                                    <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                                    <SelectItem key={cat.id} value={cat.id.toString()}>{cat.name}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
@@ -110,7 +153,7 @@ export default function ProductsPage() {
                             <SelectContent>
                                 <SelectItem value="all">Todas as Subcategorias</SelectItem>
                                 {availableSubcategories.map(sub => (
-                                    <SelectItem key={sub.id} value={sub.id}>{sub.name}</SelectItem>
+                                    <SelectItem key={sub.id} value={sub.id.toString()}>{sub.name}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
@@ -159,7 +202,7 @@ export default function ProductsPage() {
                             <span className="text-sm text-muted-foreground self-center mr-2">Filtros ativos:</span>
                             {categoryFilter !== "all" && (
                                 <Badge variant="secondary" className="gap-1">
-                                    Cat: {rootCategories.find(c => c.id === categoryFilter)?.name}
+                                    Cat: {rootCategories.find(c => c.id == categoryFilter)?.name}
                                     <button onClick={() => setCategoryFilter("all")} className="ml-1 hover:text-destructive"><Trash2 className="h-3 w-3" /></button>
                                 </Badge>
                             )}
@@ -201,7 +244,15 @@ export default function ProductsPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {filteredProducts.length === 0 ? (
+                        {isLoading ? (
+                            <TableRow>
+                                <TableCell colSpan={7} className="h-32 text-center">
+                                    <div className="flex justify-center">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        ) : filteredProducts.length === 0 ? (
                             <TableRow>
                                 <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
                                     <div className="flex flex-col items-center justify-center gap-2">
@@ -215,20 +266,20 @@ export default function ProductsPage() {
                                 <TableRow key={product.id} className="group">
                                     <TableCell>
                                         <div className="h-12 w-12 rounded-md bg-muted overflow-hidden border">
-                                            <img src={product.image} alt={product.name} className="h-full w-full object-cover" />
+                                            <img src={getProductImage(product)} alt={product.name} className="h-full w-full object-cover" />
                                         </div>
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex flex-col">
                                             <span className="font-medium">{product.name}</span>
-                                            <span className="text-xs text-muted-foreground">{product.sku}</span>
+                                            <span className="text-xs text-muted-foreground">{product.sku || 'N/A'}</span>
                                         </div>
                                     </TableCell>
                                     <TableCell>
-                                        <Badge variant="outline">{product.category}</Badge>
+                                        <Badge variant="outline">{getCategoryName(product)}</Badge>
                                     </TableCell>
                                     <TableCell className="font-medium">
-                                        R$ {product.price.toFixed(2).replace('.', ',')}
+                                        R$ {Number(product.price).toFixed(2).replace('.', ',')}
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex items-center gap-2">
@@ -275,7 +326,7 @@ export default function ProductsPage() {
                 </Table>
             </div>
             <div className="text-xs text-muted-foreground text-center">
-                Mostrando {filteredProducts.length} de {MOCK_PRODUCTS.length} produtos
+                Mostrando {filteredProducts.length} de {products.length} produtos
             </div>
         </div>
     );

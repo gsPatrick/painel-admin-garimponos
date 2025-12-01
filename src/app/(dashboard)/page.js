@@ -10,7 +10,7 @@ import { OrderDetailsModal } from "@/components/dashboard/OrderDetailsModal";
 import { Button } from "@/components/ui/button";
 import { Plus, Truck, ArrowRight, ShoppingBag } from "lucide-react";
 import Link from "next/link";
-import { getDashboardData } from "@/services/mocks";
+import AppService from "@/services/app.service";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -26,7 +26,7 @@ export default function DashboardPage() {
     const { data, isLoading, error } = useQuery({
         queryKey: ["dashboard-executive", dateRange],
         queryFn: async () => {
-            return await getDashboardData();
+            return await AppService.getDashboardData();
         },
     });
 
