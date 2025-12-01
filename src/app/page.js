@@ -66,7 +66,7 @@ function Hero3D() {
                         src="/painelescurocerto.png"
                         alt="Dashboard Dark Mode"
                         fill
-                        className="object-cover object-top opacity-90 group-hover:opacity-100 transition-opacity duration-500"
+                        className="object-contain opacity-90 group-hover:opacity-100 transition-opacity duration-500"
                         priority
                     />
                 </div>
@@ -456,19 +456,19 @@ export default function LandingPage() {
             </main>
 
             {/* Footer */}
-            <footer className="border-t border-white/5 bg-slate-950 py-12 relative z-10">
-                <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+            <footer className="mx-6 md:mx-auto max-w-5xl mb-12 rounded-3xl border border-white/10 bg-slate-950/30 py-8 relative z-10 backdrop-blur-md">
+                <div className="px-6 flex flex-col md:flex-row justify-between items-center gap-6">
                     <div className="flex items-center gap-2">
-                        <div className="size-6 rounded bg-indigo-600 flex items-center justify-center">
-                            <LayoutDashboard className="text-white size-3" />
+                        <div className="size-8 rounded-lg bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                            <LayoutDashboard className="text-white size-4" />
                         </div>
-                        <span className="text-sm font-bold text-white">Painel Ecommerce</span>
+                        <span className="text-lg font-bold text-white">Painel Ecommerce</span>
                     </div>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-sm text-slate-400">
                         © 2024 Lorena E-commerce. Todos os direitos reservados.
                     </p>
                     <div className="flex flex-col md:flex-row items-center gap-6">
-                        <a href="http://codebypatrick.dev/" target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors font-medium">
+                        <a href="http://codebypatrick.dev/" target="_blank" rel="noopener noreferrer" className="text-sm text-indigo-400 hover:text-indigo-300 transition-colors font-medium hover:underline underline-offset-4">
                             Desenvolvido por: Patrick.Developer
                         </a>
                     </div>
