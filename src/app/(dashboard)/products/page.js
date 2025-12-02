@@ -116,6 +116,12 @@ export default function ProductsPage() {
         return "Sem Categoria";
     };
 
+    const getBrandName = (product) => {
+        if (product.brand) return product.brand; // Legacy string
+        if (product.Brand && product.Brand.name) return product.Brand.name; // Relation
+        return "Sem Marca";
+    };
+
     const getProductImage = (product) => {
         if (product.images && Array.isArray(product.images) && product.images.length > 0) return product.images[0];
         if (product.image) return product.image;
@@ -271,6 +277,7 @@ export default function ProductsPage() {
                             <TableHead className="w-[80px]">Imagem</TableHead>
                             <TableHead className="w-[300px]">Produto</TableHead>
                             <TableHead>Categoria</TableHead>
+                            <TableHead>Marca</TableHead>
                             <TableHead>Preço</TableHead>
                             <TableHead>Estoque</TableHead>
                             <TableHead>Status</TableHead>
@@ -312,6 +319,9 @@ export default function ProductsPage() {
                                     <TableCell>
                                         <Badge variant="outline">{getCategoryName(product)}</Badge>
                                     </TableCell>
+                                    <TableCell>
+                                        <span className="text-sm text-muted-foreground">{getBrandName(product)}</span>
+                                    </TableCell>
                                     <TableCell className="font-medium">
                                         R$ {Number(product.price).toFixed(2).replace('.', ',')}
                                     </TableCell>
@@ -330,10 +340,10 @@ export default function ProductsPage() {
                                     </TableCell>
                                     <TableCell>
                                         <Badge
-                                            variant={product.status === 'active' ? 'default' : 'secondary'}
-                                            className={product.status === 'active' ? 'bg-emerald-500 hover:bg-emerald-600' : ''}
+                                            variant={product.status === 'active' || product.status === 'published' ? 'default' : 'secondary'}
+                                            className={product.status === 'active' || product.status === 'published' ? 'bg-emerald-500 hover:bg-emerald-600' : ''}
                                         >
-                                            {product.status === 'active' ? 'Ativo' : 'Rascunho'}
+                                            {product.status === 'active' || product.status === 'published' ? 'Ativo' : 'Rascunho'}
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-right">

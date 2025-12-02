@@ -89,6 +89,17 @@ const AppService = {
         return response.data;
     },
 
+    // --- Brands ---
+    getBrands: async () => {
+        const response = await api.get('/brands');
+        return response.data;
+    },
+
+    createBrand: async (data) => {
+        const response = await api.post('/brands', data);
+        return response.data;
+    },
+
     // --- Orders ---
     getOrders: async () => {
         const response = await api.get('/orders');

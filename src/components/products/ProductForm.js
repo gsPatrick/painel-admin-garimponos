@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import { Upload, Plus, Trash2, GripVertical, Image as ImageIcon, Box, Truck, Tag
 import { cn } from "@/lib/utils";
 import AppService from "@/services/app.service";
 import { CategoryCreateModal } from "./CategoryCreateModal";
+import { BrandCreateModal } from "./BrandCreateModal";
 import { toast } from "sonner";
 
 export function ProductForm({ initialData, onSubmit }) {
@@ -40,17 +41,29 @@ export function ProductForm({ initialData, onSubmit }) {
     const [selectedCategory, setSelectedCategory] = useState(initialData?.categoryId || initialData?.category?.id || "");
     const [selectedSubcategory, setSelectedSubcategory] = useState(initialData?.subcategoryId || "");
 
+    // Brand State
+    const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
+    const [brands, setBrands] = useState([]);
+    const [selectedBrand, setSelectedBrand] = useState(initialData?.brandId || "");
+    // If we have initialData.brand (string) but no brandId, we might need to match it?
+    // For now, assume backend sends brandId if it exists.
+
     useEffect(() => {
-        const fetchCategories = async () => {
+        const fetchData = async () => {
             try {
-                const data = await AppService.getCategories();
-                setCategories(data || []);
+                const [cats, brs] = await Promise.all([
+                    AppService.getCategories(),
+                    AppService.getBrands()
+                ]);
+                console.log("Fetched Brands:", brs);
+                setCategories(cats || []);
+                setBrands(brs || []);
             } catch (error) {
-                console.error("Failed to fetch categories:", error);
-                toast.error("Erro ao carregar categorias.");
+                console.error("Failed to fetch data:", error);
+                toast.error("Erro ao carregar dados.");
             }
         };
-        fetchCategories();
+        fetchData();
     }, []);
 
     // Hydration Logic for Variations
@@ -98,7 +111,7 @@ export function ProductForm({ initialData, onSubmit }) {
 
     const { register, handleSubmit, control, watch, setValue } = useForm({
         defaultValues: initialData || {
-            status: "active",
+            status: "published",
             stock: 0,
             price: "",
             comparePrice: "",
@@ -214,6 +227,11 @@ export function ProductForm({ initialData, onSubmit }) {
         }
     };
 
+    const handleCreateBrand = (newBrand) => {
+        setBrands([...brands, newBrand]);
+        setSelectedBrand(newBrand.id);
+    };
+
     const openCategoryModal = (mode) => {
         setModalMode(mode);
         setIsCategoryModalOpen(true);
@@ -293,8 +311,27 @@ export function ProductForm({ initialData, onSubmit }) {
                 images: finalImages,
                 hasVariations,
                 attributes: hasVariations ? attributes : [],
-                variations: hasVariations ? variations : []
+                variations: hasVariations ? variations : [],
+                // Fix numeric fields
+                price: data.price ? parseFloat(data.price) : 0,
+                comparePrice: data.comparePrice ? parseFloat(data.comparePrice) : 0,
+                cost: data.cost ? parseFloat(data.cost) : 0,
+                stock: data.stock ? parseInt(data.stock) : 0,
+                weight: data.weight ? parseFloat(data.weight) : 0,
+                // Construct dimensions object
+                dimensions: {
+                    height: data.height ? parseFloat(data.height) : 0,
+                    width: data.width ? parseFloat(data.width) : 0,
+                    length: data.length ? parseFloat(data.length) : 0
+                },
+                brandId: selectedBrand ? parseInt(selectedBrand) : null,
+                brand: selectedBrand ? brands.find(b => b.id === parseInt(selectedBrand))?.name : null // Send name as fallback/legacy
             };
+
+            // Remove top-level dimension fields if they exist in data to avoid clutter/confusion
+            delete mergedData.height;
+            delete mergedData.width;
+            delete mergedData.length;
 
             if (onSubmit) {
                 await onSubmit(mergedData);
@@ -644,16 +681,22 @@ export function ProductForm({ initialData, onSubmit }) {
                         <CardTitle>Status</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <Select defaultValue="active">
-                            <SelectTrigger className="bg-background">
-                                <SelectValue placeholder="Selecione" />
-                            </SelectTrigger>
-                            <SelectContent className="z-50">
-                                <SelectItem value="active">Ativo</SelectItem>
-                                <SelectItem value="draft">Rascunho</SelectItem>
-                                <SelectItem value="archived">Arquivado</SelectItem>
-                            </SelectContent>
-                        </Select>
+                        <Controller
+                            control={control}
+                            name="status"
+                            render={({ field }) => (
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <SelectTrigger className="bg-background">
+                                        <SelectValue placeholder="Selecione" />
+                                    </SelectTrigger>
+                                    <SelectContent className="z-50">
+                                        <SelectItem value="published">Ativo</SelectItem>
+                                        <SelectItem value="draft">Rascunho</SelectItem>
+                                        <SelectItem value="archived">Arquivado</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            )}
+                        />
                         <div className="space-y-2 pt-2">
                             <Label className="text-xs uppercase text-muted-foreground font-bold">Canais de Venda</Label>
                             <div className="flex items-center gap-2">
@@ -705,6 +748,42 @@ export function ProductForm({ initialData, onSubmit }) {
                                         }}
                                     >
                                         <Plus className="size-3 mr-2" /> Criar nova categoria
+                                    </Button>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {/* Brand Field */}
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <Label>Marca</Label>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 w-6 p-0 hover:bg-primary/10 hover:text-primary"
+                                    onClick={() => setIsBrandModalOpen(true)}
+                                >
+                                    <Plus className="size-3" />
+                                </Button>
+                            </div>
+                            <Select value={selectedBrand ? String(selectedBrand) : ""} onValueChange={setSelectedBrand}>
+                                <SelectTrigger className="bg-background">
+                                    <SelectValue placeholder="Selecione..." />
+                                </SelectTrigger>
+                                <SelectContent className="z-50">
+                                    {brands.map(brand => (
+                                        <SelectItem key={brand.id} value={String(brand.id)}>{brand.name}</SelectItem>
+                                    ))}
+                                    <Button
+                                        variant="ghost"
+                                        className="w-full justify-start text-primary font-medium h-8 px-2 text-xs"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            setIsBrandModalOpen(true);
+                                        }}
+                                    >
+                                        <Plus className="size-3 mr-2" /> Criar nova marca
                                     </Button>
                                 </SelectContent>
                             </Select>
@@ -773,19 +852,19 @@ export function ProductForm({ initialData, onSubmit }) {
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label>Peso (kg)</Label>
-                                <Input placeholder="0.0" />
+                                <Input placeholder="0.0" {...register("weight")} />
                             </div>
                             <div className="space-y-2">
                                 <Label>Altura (cm)</Label>
-                                <Input placeholder="0" />
+                                <Input placeholder="0" {...register("height")} />
                             </div>
                             <div className="space-y-2">
                                 <Label>Largura (cm)</Label>
-                                <Input placeholder="0" />
+                                <Input placeholder="0" {...register("width")} />
                             </div>
                             <div className="space-y-2">
                                 <Label>Comp. (cm)</Label>
-                                <Input placeholder="0" />
+                                <Input placeholder="0" {...register("length")} />
                             </div>
                         </div>
                     </CardContent>
@@ -826,6 +905,12 @@ export function ProductForm({ initialData, onSubmit }) {
                 mode={modalMode}
                 defaultParentId={selectedCategory}
             />
-        </form>
+
+            <BrandCreateModal
+                open={isBrandModalOpen}
+                onOpenChange={setIsBrandModalOpen}
+                onCreate={handleCreateBrand}
+            />
+        </form >
     );
 }
