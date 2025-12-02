@@ -13,11 +13,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Obras",
-  description: "Obras",
+  title: "Painel Ecommerce",
+  description: "Painel Ecommerce",
 };
 
 import Providers from "@/components/providers";
+import { AccessDeniedModal } from "@/components/auth/AccessDeniedModal";
 
 // ...
 
@@ -27,6 +28,7 @@ export default function RootLayout({ children }) {
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <Providers>
           {children}
+          <AccessDeniedModal />
         </Providers>
       </body>
     </html>

@@ -30,6 +30,14 @@ api.interceptors.request.use(
 api.interceptors.response.use(
     (response) => response,
     (error) => {
+        if (error.response?.status === 401) {
+            // Optional: Handle token expiration / logout here if not handled by useAuth
+        }
+        if (error.response?.status === 403) {
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new Event('access-denied'));
+            }
+        }
         const message = error.response?.data?.message || "Erro de conexão com o servidor.";
         console.error("API Error:", error);
 

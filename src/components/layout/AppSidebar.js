@@ -22,7 +22,8 @@ import {
   BarChart3,
   Box,
   Tag,
-  Menu // Import Menu icon
+  Menu,
+  Shield
 } from "lucide-react";
 
 // Menu Groups
@@ -48,6 +49,7 @@ const menuGroups = [
     title: "Configuração",
     items: [
       { title: "Frete", icon: Truck, href: "/shipping" },
+      { title: "Perfis de Acesso", icon: Shield, href: "/settings/roles" },
       { title: "Ajustes", icon: Settings, href: "/settings" },
     ]
   }
@@ -57,10 +59,15 @@ import { useTheme } from "@/contexts/ThemeContext";
 
 // ... (imports)
 
+import { usePermission } from "@/hooks/usePermission";
+
+// ... (imports)
+
 export function AppSidebar({ isCollapsed, setIsCollapsed }) {
   // Removed local state: const [isCollapsed, setIsCollapsed] = useState(false);
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { can } = usePermission(); // Use the hook
   const [mounted, setMounted] = useState(false);
   const { theme } = useTheme();
 
@@ -70,6 +77,29 @@ export function AppSidebar({ isCollapsed, setIsCollapsed }) {
   }, []);
 
   if (!mounted) return null;
+
+  // Define permissions for each route
+  const getPermissionForRoute = (href) => {
+    if (href === '/') return 'dashboard:read';
+    if (href.startsWith('/products')) return 'products:read';
+    if (href.startsWith('/categories')) return 'products:read'; // Categories usually grouped with products or have their own
+    if (href.startsWith('/orders')) return 'orders:read';
+    if (href.startsWith('/customers')) return 'customers:read';
+    if (href.startsWith('/marketing')) return 'coupons:read';
+    if (href.startsWith('/shipping')) return 'shipping:read';
+    if (href.startsWith('/settings/roles')) return 'roles:read';
+    if (href.startsWith('/settings')) return 'settings:read';
+    return null; // Public or no specific permission required
+  };
+
+  // Filter menu groups
+  const filteredMenuGroups = menuGroups.map(group => ({
+    ...group,
+    items: group.items.filter(item => {
+      const requiredPermission = getPermissionForRoute(item.href);
+      return !requiredPermission || can(requiredPermission.split(':')[0], 'read');
+    })
+  })).filter(group => group.items.length > 0);
 
   // Sidebar Content Component to reuse in Desktop and Mobile
   const SidebarContent = () => (
@@ -95,7 +125,7 @@ export function AppSidebar({ isCollapsed, setIsCollapsed }) {
 
       {/* Navigation */}
       <div className="flex-1 overflow-y-auto py-6 px-4 space-y-8 scrollbar-thin scrollbar-thumb-border">
-        {menuGroups.map((group, idx) => (
+        {filteredMenuGroups.map((group, idx) => (
           <div key={idx}>
             {!isCollapsed && (
               <h3 className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-wider mb-3 px-2">
