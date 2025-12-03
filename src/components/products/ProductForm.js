@@ -32,7 +32,7 @@ export function ProductForm({ initialData, onSubmit }) {
     const [tempColorHex, setTempColorHex] = useState("#000000");
 
     // Image State
-    const [images, setImages] = useState(initialData?.images || []);
+    const [images, setImages] = useState(initialData?.images?.map(img => (typeof img === 'object' && img.src) ? img.src : img) || []);
     const [pendingFiles, setPendingFiles] = useState([]);
 
     // Category State
@@ -71,7 +71,10 @@ export function ProductForm({ initialData, onSubmit }) {
         if (initialData) {
             // 1. Images
             if (initialData.images && Array.isArray(initialData.images)) {
-                setImages(initialData.images);
+                setImages(initialData.images.map(img => {
+                    if (typeof img === 'object' && img.src) return img.src;
+                    return img;
+                }));
             }
 
             // 2. Attributes (Size, Color, General)
